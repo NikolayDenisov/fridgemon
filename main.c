@@ -64,6 +64,26 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 #include "nrf_temp.h"
+#include "nrf_nvmc.h"
+
+#define FLASHWRITE_EXAMPLE_MAX_STRING_LEN       (62u)
+#define FLASHWRITE_EXAMPLE_BLOCK_VALID          (0xA55A5AA5)
+#define FLASHWRITE_EXAMPLE_BLOCK_INVALID        (0xA55A0000)
+#define FLASHWRITE_EXAMPLE_BLOCK_NOT_INIT       (0xFFFFFFFF)
+
+typedef struct {
+  uint32_t magic_number;
+  uint32_t buffer[FLASHWRITE_EXAMPLE_MAX_STRING_LEN + 1];
+} flashwrite_example_flash_data_t;
+
+typedef struct {
+  uint32_t  addr;
+  uint32_t  pg_size;
+  uint32_t  pg_num;
+  flashwrite_example_flash_data_t *m_p_flash_data;
+} flashwrite_example_data_t;
+
+static flashwrite_example_data_t m_data;
 
 static uint32_t                   packet;                    /**< Packet to transmit. */
 
@@ -178,6 +198,24 @@ void read_temp(void) {
     NRF_LOG_INFO("Actual temperature: %d", (int)temp);
 }
 
+static void flash_page_init(void) {
+  m_data.pg_num = NRF_FICR->CODESIZE - 1;
+  m_data.pg_size = NRF_FICR->CODEPAGESIZE;
+  m_data.addr = (m_data.pg_num * m_data.pg_size);
+  m_data.m_p_flash_data = (flashwrite_example_flash_data_t *)m_data.addr;
+
+  while(1) {
+    if (m_data.m_p_flash_data->magic_number == FLASHWRITE_EXAMPLE_BLOCK_VALID) {
+      return;
+    }
+    if (m_data.m_p_flash_data->magic_number == FLASHWRITE_EXAMPLE_BLOCK_INVALID) {
+      ++m_data.m_p_flash_data;
+      continue;
+    }
+    nrf_nvmc_page_erase(m_data.addr);
+    return;
+  }
+}
 
 /**
  * @brief Function for application main entry.
@@ -210,6 +248,8 @@ int main(void)
     NRF_LOG_INFO("Radio transmitter example started.");
     NRF_LOG_INFO("Press Any Button");
     APP_ERROR_CHECK(err_code);
+
+    flash_page_init();
 
     while (true)
     {
