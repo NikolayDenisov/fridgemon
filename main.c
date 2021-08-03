@@ -123,42 +123,6 @@ void send_packet()
 }
 
 
-/**@brief Function for handling bsp events.
- */
-void bsp_evt_handler(bsp_event_t evt)
-{
-    uint32_t prep_packet = 0;
-    switch (evt)
-    {
-        case BSP_EVENT_KEY_0:
-            /* Fall through. */
-        case BSP_EVENT_KEY_1:
-            /* Fall through. */
-        case BSP_EVENT_KEY_2:
-            /* Fall through. */
-        case BSP_EVENT_KEY_3:
-            /* Fall through. */
-        case BSP_EVENT_KEY_4:
-            /* Fall through. */
-        case BSP_EVENT_KEY_5:
-            /* Fall through. */
-        case BSP_EVENT_KEY_6:
-            /* Fall through. */
-        case BSP_EVENT_KEY_7:
-            /* Get actual button state. */
-            for (int i = 0; i < BUTTONS_NUMBER; i++)
-            {
-                prep_packet |= (bsp_board_button_state_get(i) ? (1 << i) : 0);
-            }
-            break;
-        default:
-            /* No implementation needed. */
-            break;
-    }
-    packet = prep_packet;
-}
-
-
 /**@brief Function for initialization oscillators.
  */
 void clock_initialization()
@@ -186,6 +150,7 @@ void clock_initialization()
 
 void read_temp(void) {
     uint32_t volatile temp;
+    char temp_s[5];
     nrf_temp_init();
     //Start temperature measurement
     NRF_TEMP->TASKS_START = 1;
@@ -197,25 +162,30 @@ void read_temp(void) {
     //Stop temperature measurement
     NRF_TEMP->TASKS_STOP = 1;
     NRF_LOG_INFO("Actual temperature: %d", (int)temp);
+    itoa(temp, temp_s, 10);
+    NRF_LOG_INFO("String temperature: %s\n", temp_s);
+    flashwrite_write(temp_s);
 }
 
-static void flash_page_init(void) {
-  m_data.pg_num = NRF_FICR->CODESIZE - 1;
-  m_data.pg_size = NRF_FICR->CODEPAGESIZE;
-  m_data.addr = (m_data.pg_num * m_data.pg_size);
-  m_data.m_p_flash_data = (flashwrite_example_flash_data_t *)m_data.addr;
 
-  while(1) {
-    if (m_data.m_p_flash_data->magic_number == FLASHWRITE_EXAMPLE_BLOCK_VALID) {
-      return;
+static void flash_page_init(void) {
+    m_data.pg_num = NRF_FICR->CODESIZE - 1;
+    m_data.pg_size = NRF_FICR->CODEPAGESIZE;
+    m_data.addr = (m_data.pg_num * m_data.pg_size);
+    m_data.m_p_flash_data = (flashwrite_example_flash_data_t *)m_data.addr;
+    while (1)
+    {
+        if (m_data.m_p_flash_data->magic_number == FLASHWRITE_EXAMPLE_BLOCK_VALID) {
+            return;
+        }
+
+        if (m_data.m_p_flash_data->magic_number == FLASHWRITE_EXAMPLE_BLOCK_INVALID) {
+            ++m_data.m_p_flash_data;
+            continue;
+        }
+        nrf_nvmc_page_erase(m_data.addr);
+        return;
     }
-    if (m_data.m_p_flash_data->magic_number == FLASHWRITE_EXAMPLE_BLOCK_INVALID) {
-      ++m_data.m_p_flash_data;
-      continue;
-    }
-    nrf_nvmc_page_erase(m_data.addr);
-    return;
-  }
 }
 
 static void flash_string_write(uint32_t address, const char *src, uint32_t num_words){
@@ -262,7 +232,7 @@ static void flashwrite_read() {
   }
 }
 
-static void flashwrite_write(char *input) {
+void flashwrite_write(char *input) {
   static uint16_t const page_size = 4096;
   uint32_t len = strlen(input);
   if (len > FLASHWRITE_EXAMPLE_MAX_STRING_LEN) {
@@ -288,6 +258,48 @@ static void flashwrite_write(char *input) {
   //++len -> store also end of string '\0'
   flash_string_write((uint32_t)&m_data.m_p_flash_data->buffer, input, ++len);
   nrf_nvmc_write_word((uint32_t)&m_data.m_p_flash_data->magic_number, FLASHWRITE_EXAMPLE_BLOCK_VALID);
+}
+
+/**@brief Function for handling bsp events.
+ */
+void bsp_evt_handler(bsp_event_t evt)
+{
+    uint32_t prep_packet = 0;
+    switch (evt)
+    {
+        case BSP_EVENT_KEY_0:
+            /* Fall through. */
+        case BSP_EVENT_KEY_1:
+            /* Fall through. */
+        case BSP_EVENT_KEY_2:
+            /* Fall through. */
+        case BSP_EVENT_KEY_3:
+            /* Fall through. */
+        case BSP_EVENT_KEY_4:
+            /* Fall through. */
+        case BSP_EVENT_KEY_5:
+            /* Fall through. */
+        case BSP_EVENT_KEY_6:
+            /* Fall through. */
+        case BSP_EVENT_KEY_7:
+            /* Get actual button state. */
+            for (int i = 0; i < BUTTONS_NUMBER; i++)
+            {
+                prep_packet |= (bsp_board_button_state_get(i) ? (1 << i) : 0);
+            }
+            break;
+        default:
+            /* No implementation needed. */
+            break;
+    }
+    if(prep_packet == 4) {
+      NRF_LOG_INFO("Start erase memory");
+      flashwrite_erase();
+    }else if (prep_packet == 8) {
+      NRF_LOG_INFO("Print flash");
+      flashwrite_read();
+    }
+    packet = prep_packet;
 }
 
 
@@ -324,6 +336,7 @@ int main(void)
     APP_ERROR_CHECK(err_code);
 
     flash_page_init();
+    flashwrite_erase();
 
 
     while (true)
