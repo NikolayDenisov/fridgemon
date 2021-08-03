@@ -52,6 +52,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include "radio_config.h"
 #include "nrf_gpio.h"
 #include "app_timer.h"
@@ -217,6 +218,79 @@ static void flash_page_init(void) {
   }
 }
 
+static void flash_string_write(uint32_t address, const char *src, uint32_t num_words){
+  uint32_t i;
+  // Enable write.
+  NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Wen;
+  while(NRF_NVMC->READY == NVMC_READY_READY_Busy) {
+  }
+  for(i = 0; i < num_words; i++) {
+    /* Only full 32-bit words can be written to Flash. */
+    ((uint32_t*)address)[i] = 0x000000FFUL & (uint32_t)((uint8_t)src[i]);
+    while(NRF_NVMC->READY == NVMC_READY_READY_Busy) {
+    }
+  }
+  NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Ren;
+  while(NRF_NVMC->READY == NVMC_READY_READY_Busy){
+  }
+}
+
+static void flashwrite_erase() {
+  nrf_nvmc_page_erase(m_data.addr);
+  m_data.m_p_flash_data = (flashwrite_example_data_t *)m_data.addr;
+}
+
+static void flashwrite_read() {
+  flashwrite_example_flash_data_t *p_data = (flashwrite_example_flash_data_t *)m_data.addr;
+  char string_buff[FLASHWRITE_EXAMPLE_MAX_STRING_LEN + 1]; // + 1 for end of string
+  if ((p_data == m_data.m_p_flash_data) && (p_data->magic_number != FLASHWRITE_EXAMPLE_BLOCK_VALID)) {
+    NRF_LOG_INFO("Please write something first.\r\n");
+    return;
+  }
+  while(p_data <= m_data.m_p_flash_data) {
+    if((p_data->magic_number != FLASHWRITE_EXAMPLE_BLOCK_VALID) &&
+    (p_data->magic_number != FLASHWRITE_EXAMPLE_BLOCK_INVALID)) {
+      NRF_LOG_INFO("Corrupted data found.\r\n");
+      return;
+    }
+    uint8_t i;
+    for (i=0; i <= FLASHWRITE_EXAMPLE_MAX_STRING_LEN; i++) {
+      string_buff[i] = (char)p_data->buffer[i];
+    }
+    NRF_LOG_INFO("%s\r\n", string_buff);
+    ++p_data;
+  }
+}
+
+static void flashwrite_write(char *input) {
+  static uint16_t const page_size = 4096;
+  uint32_t len = strlen(input);
+  if (len > FLASHWRITE_EXAMPLE_MAX_STRING_LEN) {
+    NRF_LOG_INFO("Too long string. Please limit entered string to %d chars.\r\n", FLASHWRITE_EXAMPLE_MAX_STRING_LEN);
+    return;
+  }
+  if((m_data.m_p_flash_data->magic_number != FLASHWRITE_EXAMPLE_BLOCK_NOT_INIT) &&
+   (m_data.m_p_flash_data->magic_number != FLASHWRITE_EXAMPLE_BLOCK_VALID)) {
+   NRF_LOG_INFO("Flash corrupted, please errase it first.");
+   return;
+   }
+   if (m_data.m_p_flash_data->magic_number == FLASHWRITE_EXAMPLE_BLOCK_VALID) {
+   uint32_t new_end_addr = (uint32_t)(m_data.m_p_flash_data + 2);
+   uint32_t diff = new_end_addr - m_data.addr;
+   if (diff > page_size) {
+     NRF_LOG_INFO("Not enough space - please erase flash first.\r\n");
+    return;
+   }
+   nrf_nvmc_write_word((uint32_t)&m_data.m_p_flash_data->magic_number, FLASHWRITE_EXAMPLE_BLOCK_INVALID);
+   ++m_data.m_p_flash_data;
+
+  }
+  //++len -> store also end of string '\0'
+  flash_string_write((uint32_t)&m_data.m_p_flash_data->buffer, input, ++len);
+  nrf_nvmc_write_word((uint32_t)&m_data.m_p_flash_data->magic_number, FLASHWRITE_EXAMPLE_BLOCK_VALID);
+}
+
+
 /**
  * @brief Function for application main entry.
  * @return 0. int return type required by ANSI/ISO standard.
@@ -250,6 +324,7 @@ int main(void)
     APP_ERROR_CHECK(err_code);
 
     flash_page_init();
+
 
     while (true)
     {
