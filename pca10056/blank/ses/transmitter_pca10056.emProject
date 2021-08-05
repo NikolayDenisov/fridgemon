@@ -85,8 +85,8 @@
     <folder Name="Application">
       <file file_name="../../../main.c" />
       <file file_name="../config/sdk_config.h" />
-      <file file_name="nrf_calendar.c" />
-      <file file_name="nrf_calendar.h" />
+      <file file_name="../../../nrf_calendar.c" />
+      <file file_name="../../../nrf_calendar.h" />
     </folder>
     <folder Name="nRF_Segger_RTT">
       <file file_name="../../../../../../../external/segger_rtt/SEGGER_RTT.c" />

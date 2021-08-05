@@ -14,12 +14,15 @@
 #include "nrf_log_default_backends.h"
 #include "nrf_temp.h"
 #include "nrf_nvmc.h"
+#include "nrf_calendar.h"
 
 #define FLASHWRITE_EXAMPLE_MAX_STRING_LEN       (62u)
 #define FLASHWRITE_EXAMPLE_BLOCK_VALID          (0xA55A5AA5)
 #define FLASHWRITE_EXAMPLE_BLOCK_INVALID        (0xA55A0000)
 #define FLASHWRITE_EXAMPLE_BLOCK_NOT_INIT       (0xFFFFFFFF)
 
+
+static bool run_time_updates = false;
 
 typedef struct {
 	uint32_t magic_number;
@@ -42,6 +45,7 @@ static void timestamp()
     time_t ltime; /* calendar time */
     ltime=time(NULL); /* get current cal time */
     NRF_LOG_INFO("timestamp = %s", asctime( localtime(&ltime) ) );
+    NRF_LOG_INFO("Calibrated time:\t%s\r\n", nrf_cal_get_time_string(true));
 }
 
 /**@brief Function for sending packet.
@@ -268,6 +272,7 @@ void bsp_evt_handler(bsp_event_t evt)
 	if(prep_packet == 4) {
 		NRF_LOG_INFO("Start erase memory");
 		flashwrite_erase();
+                timestamp();
 	}else if (prep_packet == 8) {
 		NRF_LOG_INFO("Print flash");
 		flashwrite_read();
@@ -284,6 +289,20 @@ static void log_init(void) {
 	ret_code_t err_code = NRF_LOG_INIT(NULL);
 	APP_ERROR_CHECK(err_code);
 	NRF_LOG_DEFAULT_BACKENDS_INIT();
+}
+
+void print_current_time()
+{
+    NRF_LOG_INFO("Uncalibrated time:\t%s\r\n", nrf_cal_get_time_string(false));
+    NRF_LOG_INFO("Calibrated time:\t%s\r\n", nrf_cal_get_time_string(true));
+}
+
+void calendar_updated()
+{
+    if(run_time_updates)
+    {
+        print_current_time();
+    }
 }
 
 /**
@@ -317,6 +336,11 @@ int main(void)
 
 	flash_page_init();
 	flashwrite_erase();
+
+        nrf_cal_init();
+        nrf_cal_set_callback(calendar_updated, 4);
+
+        print_current_time();
 
 
 	while (true)
