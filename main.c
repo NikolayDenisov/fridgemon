@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdio.h>
+#include <time.h>
 #include "nrf.h"
 #include "bsp.h"
 #include "app_error.h"
@@ -128,8 +129,6 @@ int main(void)
 static void flash_string_write(uint32_t address, const char * src, uint32_t num_words)
 {
     uint32_t i;
-    NRF_LOG_RAW_INFO("flash_string_write num_words = %d\r\n", num_words);
-    NRF_LOG_RAW_INFO("flash_string_write src = %s\r\n", src);
     // Enable write.
     NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Wen;
     while (NRF_NVMC->READY == NVMC_READY_READY_Busy)
@@ -284,7 +283,38 @@ static void datetime_print_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv
     nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "%s\r\n", nrf_cal_get_time_string(true));
 }
 
-NRF_CLI_CREATE_STATIC_SUBCMD_SET(m_sub_flash)
+static void datetime_set_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
+{
+    uint32_t year, month, day, hour, minute, second;
+    if (argc < 2)
+    {
+        nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "%s:%s", argv[0], " bad parameter count\r\n");
+        return;
+    }
+    if (argc > 2)
+    {
+        nrf_cli_fprintf(p_cli,
+                        NRF_CLI_WARNING,
+                        "%s:%s",
+                        argv[0],
+                        " bad parameter count - please use quotes\r\n");
+        return;
+    }
+    nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "%s", argv[1], " input\r\n");
+    char *dateString = argv[1];
+    struct tm tm;
+    time_t t;
+    if (strptime(dateString, "%d/%b/%Y %H:%M:%S", &tm) == NULL) {
+        /* Handle error */;
+    }
+    printf("year: %d; month: %d; day: %d;\n",
+            tm.tm_year, tm.tm_mon, tm.tm_mday);
+    printf("hour: %d; minute: %d; second: %d\n",
+            tm.tm_hour, tm.tm_min, tm.tm_sec);
+    printf("week day: %d; year day: %d\n", tm.tm_wday, tm.tm_yday);
+}
+
+ NRF_CLI_CREATE_STATIC_SUBCMD_SET(m_sub_flash)
 {
     NRF_CLI_CMD(erase, NULL, "Erase flash.",          flashwrite_erase_cmd),
     NRF_CLI_CMD(read,  NULL, "Read data from flash.", flashwrite_read_cmd),
@@ -295,7 +325,8 @@ NRF_CLI_CREATE_STATIC_SUBCMD_SET(m_sub_flash)
                                                       flashwrite_write_cmd),
     NRF_CLI_CMD(temp, NULL, "Print current temperatute.", temp_print_cmd),
     NRF_CLI_CMD(datetime, NULL, "Print current datetime", datetime_print_cmd),
-    //NRF_CLI_CMD(setdatetime, NULL, "Set current datetime", datetime_set_cmd),
+    NRF_CLI_CMD(setdatetime, NULL, "Set current datetime.\n"
+                                    "Example 21/12/2021 12:12:00", datetime_set_cmd),
     NRF_CLI_SUBCMD_SET_END
 };
 NRF_CLI_CMD_REGISTER(flash, &m_sub_flash, "Flash access command.", flashwrite_cmd);
