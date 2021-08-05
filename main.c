@@ -201,7 +201,7 @@ void flashwrite_write(uint32_t input) {
         char final_temp[1][3];
 	NRF_LOG_INFO("flashwrite_write input = %d", input);
 	sprintf(temp_s, "%d", input);
-        strcpy(final_temp[0], "hello");
+        strcpy(final_temp[0], temp_s);
 	NRF_LOG_INFO("Temp_s = %c", *final_temp);
         printf("\nYou have entered: %c", final_temp[0]);
 	uint32_t len;
