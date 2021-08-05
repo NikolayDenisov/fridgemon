@@ -37,6 +37,7 @@
 "Output/Release/Obj/transmitter_pca10056/nrf_nvmc.o"
 "Output/Release/Obj/transmitter_pca10056/bsp.o"
 "Output/Release/Obj/transmitter_pca10056/main.o"
+"Output/Release/Obj/transmitter_pca10056/nrf_calendar.o"
 "Output/Release/Obj/transmitter_pca10056/SEGGER_RTT.o"
 "Output/Release/Obj/transmitter_pca10056/SEGGER_RTT_Syscalls_SES.o"
 "Output/Release/Obj/transmitter_pca10056/SEGGER_RTT_printf.o"

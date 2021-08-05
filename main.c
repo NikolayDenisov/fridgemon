@@ -1,54 +1,3 @@
-/**
- * Copyright (c) 2014 - 2020, Nordic Semiconductor ASA
- *
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form, except as embedded into a Nordic
- *    Semiconductor ASA integrated circuit in a product or a software update for
- *    such product, must reproduce the above copyright notice, this list of
- *    conditions and the following disclaimer in the documentation and/or other
- *    materials provided with the distribution.
- *
- * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- * 4. This software, with or without modification, must only be used with a
- *    Nordic Semiconductor ASA integrated circuit.
- *
- * 5. Any software provided in binary form under this license must not be reverse
- *    engineered, decompiled, modified and/or disassembled.
- *
- * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL NORDIC SEMICONDUCTOR ASA OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
- * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- */
-/** @file
- *
- * @defgroup nrf_dev_button_radio_tx_example_main main.c
- * @{
- * @ingroup nrf_dev_button_radio_tx_example
- *
- * @brief Radio Transceiver Example Application main file.
- *
- * This file contains the source code for a sample application using the NRF_RADIO peripheral.
- *
- */
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <time.h>
@@ -71,6 +20,7 @@
 #define FLASHWRITE_EXAMPLE_BLOCK_INVALID        (0xA55A0000)
 #define FLASHWRITE_EXAMPLE_BLOCK_NOT_INIT       (0xFFFFFFFF)
 
+
 typedef struct {
 	uint32_t magic_number;
 	uint32_t buffer[FLASHWRITE_EXAMPLE_MAX_STRING_LEN + 1];
@@ -91,7 +41,7 @@ static void timestamp()
 {
     time_t ltime; /* calendar time */
     ltime=time(NULL); /* get current cal time */
-    printf("%s",asctime( localtime(&ltime) ) );
+    NRF_LOG_INFO("timestamp = %s", asctime( localtime(&ltime) ) );
 }
 
 /**@brief Function for sending packet.
@@ -154,8 +104,8 @@ void clock_initialization()
 	}
 }
 
-void read_temp(void) {
-	uint32_t volatile temp;
+void read_temp() {
+	uint32_t temp;
 	nrf_temp_init();
 	//Start temperature measurement
 	NRF_TEMP->TASKS_START = 1;
@@ -166,7 +116,8 @@ void read_temp(void) {
 	temp = nrf_temp_read()/4;
 	//Stop temperature measurement
 	NRF_TEMP->TASKS_STOP = 1;
-	//NRF_LOG_INFO("Actual temperature: %d", (int)temp);
+	NRF_LOG_INFO("Actual temperature: %d", (int)temp);
+        flashwrite_write(temp);
 }
 
 
@@ -239,19 +190,22 @@ static void flashwrite_read()
             string_buff[i] = (char)p_data->buffer[i];
         }
 
-        NRF_LOG_INFO("%s\r\n", string_buff);
+        NRF_LOG_DEBUG("Flash data = %s\r\n", (uint32_t)string_buff);
         ++p_data;
     }
 }
 
 void flashwrite_write(uint32_t input) {
 	static uint16_t const page_size = 4096;
-	NRF_LOG_INFO("input = %d", input);
-	char *temp_s[3] = {"hello", "world","man"};
-	//sprintf(temp_s, "%d", input);
-	NRF_LOG_INFO("Temp_s = %s", temp_s[0]);
+        char temp_s[3];
+        char final_temp[1][3];
+	NRF_LOG_INFO("flashwrite_write input = %d", input);
+	sprintf(temp_s, "%d", input);
+        strcpy(final_temp[0], "hello");
+	NRF_LOG_INFO("Temp_s = %c", *final_temp);
+        printf("\nYou have entered: %c", final_temp[0]);
 	uint32_t len;
-	len = strlen(temp_s[0]);
+	len = strlen(final_temp[0]);
 	NRF_LOG_INFO("len = %d.", len);
 
 	if (len > FLASHWRITE_EXAMPLE_MAX_STRING_LEN) {
@@ -275,7 +229,7 @@ void flashwrite_write(uint32_t input) {
 
 	}
 	//++len -> store also end of string '\0'
-	flash_string_write((uint32_t)&m_data.m_p_flash_data->buffer, temp_s[0], ++len);
+	flash_string_write((uint32_t)&m_data.m_p_flash_data->buffer, final_temp[0], ++len);
 	nrf_nvmc_write_word((uint32_t)&m_data.m_p_flash_data->magic_number, FLASHWRITE_EXAMPLE_BLOCK_VALID);
 }
 
@@ -317,11 +271,10 @@ void bsp_evt_handler(bsp_event_t evt)
 	}else if (prep_packet == 8) {
 		NRF_LOG_INFO("Print flash");
 		flashwrite_read();
-                timestamp();
 	}
         else {
           NRF_LOG_INFO("Write data in flash");
-          flashwrite_write(1);
+          read_temp();
         }
 	packet = prep_packet;
 }
@@ -330,7 +283,6 @@ void bsp_evt_handler(bsp_event_t evt)
 static void log_init(void) {
 	ret_code_t err_code = NRF_LOG_INIT(NULL);
 	APP_ERROR_CHECK(err_code);
-
 	NRF_LOG_DEFAULT_BACKENDS_INIT();
 }
 
@@ -373,7 +325,6 @@ int main(void)
 		{
 			send_packet();
 			//NRF_LOG_INFO("The contents of the package was %u", (unsigned int)packet);
-			read_temp();
 			packet = 0;
 		}
 		NRF_LOG_FLUSH();
