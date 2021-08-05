@@ -1,51 +1,3 @@
-/**
- * Copyright (c) 2014 - 2020, Nordic Semiconductor ASA
- *
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form, except as embedded into a Nordic
- *    Semiconductor ASA integrated circuit in a product or a software update for
- *    such product, must reproduce the above copyright notice, this list of
- *    conditions and the following disclaimer in the documentation and/or other
- *    materials provided with the distribution.
- *
- * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- * 4. This software, with or without modification, must only be used with a
- *    Nordic Semiconductor ASA integrated circuit.
- *
- * 5. Any software provided in binary form under this license must not be reverse
- *    engineered, decompiled, modified and/or disassembled.
- *
- * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL NORDIC SEMICONDUCTOR ASA OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
- * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- */
-/** @file
- * @defgroup flashwrite_example_main main.c
- * @{
- * @ingroup flashwrite_example
- *
- * @brief This file contains the source code for a sample application using the Flash Write Application.
- *a
- */
-
 #include <stdbool.h>
 #include <stdio.h>
 #include "nrf.h"
@@ -63,11 +15,16 @@
 
 #include "nrf_cli.h"
 #include "nrf_cli_uart.h"
+#include "nrf_temp.h"
+
+#include "nrf_calendar.h"
 
 #define FLASHWRITE_EXAMPLE_MAX_STRING_LEN       (62u)
 #define FLASHWRITE_EXAMPLE_BLOCK_VALID          (0xA55A5AA5)
 #define FLASHWRITE_EXAMPLE_BLOCK_INVALID        (0xA55A0000)
 #define FLASHWRITE_EXAMPLE_BLOCK_NOT_INIT       (0xFFFFFFFF)
+
+static bool run_time_updates = false;
 
 NRF_CLI_UART_DEF(m_cli_uart_transport, 0, 64, 16);
 NRF_CLI_DEF(m_cli_uart, "uart_cli:~$ ", &m_cli_uart_transport.transport, '\r', 4);
@@ -128,6 +85,7 @@ static void flash_page_init(void)
         return;
     }
 }
+
 /**
  * @brief Function for application main entry.
  */
@@ -142,6 +100,7 @@ int main(void)
 
     err_code = clock_config();
     APP_ERROR_CHECK(err_code);
+    nrf_cal_init();
 
     flash_page_init();
 
@@ -225,10 +184,7 @@ static void flashwrite_read_cmd(nrf_cli_t const * p_cli, size_t argc, char **arg
         {
             string_buff[i] = (char)p_data->buffer[i];
         }
-        char test_s[]="Hello world";
         nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "%s\r\n", string_buff);
-        NRF_LOG_INFO("string_buff = %s\r\n", (uint32_t)string_buff[0]);
-        NRF_LOG_INFO("test_s = %s\r\n", *test_s);
         ++p_data;
     }
 }
@@ -305,6 +261,29 @@ static void flashwrite_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
     nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "%s:%s%s\r\n", argv[0], " unknown parameter: ", argv[1]);
 }
 
+
+static void temp_print_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
+{
+    uint32_t temp;
+    nrf_temp_init();
+    //Start temperature measurement
+    NRF_TEMP->TASKS_START = 1;
+    while(NRF_TEMP->EVENTS_DATARDY == 0) {
+      //Temperature measurement complete, data ready
+    }
+    NRF_TEMP->EVENTS_DATARDY = 0;
+    temp = nrf_temp_read()/4;
+    //Stop temperature measurement
+    NRF_TEMP->TASKS_STOP = 1;
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "%d\r\n", temp);
+
+}
+
+static void datetime_print_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
+{
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "%s\r\n", nrf_cal_get_time_string(true));
+}
+
 NRF_CLI_CREATE_STATIC_SUBCMD_SET(m_sub_flash)
 {
     NRF_CLI_CMD(erase, NULL, "Erase flash.",          flashwrite_erase_cmd),
@@ -314,6 +293,9 @@ NRF_CLI_CREATE_STATIC_SUBCMD_SET(m_sub_flash)
                              "- maximum 16 entries,\n"
                              "- each entry is maximum 62 chars long.",
                                                       flashwrite_write_cmd),
+    NRF_CLI_CMD(temp, NULL, "Print current temperatute.", temp_print_cmd),
+    NRF_CLI_CMD(datetime, NULL, "Print current datetime", datetime_print_cmd),
+    //NRF_CLI_CMD(setdatetime, NULL, "Set current datetime", datetime_set_cmd),
     NRF_CLI_SUBCMD_SET_END
 };
 NRF_CLI_CMD_REGISTER(flash, &m_sub_flash, "Flash access command.", flashwrite_cmd);

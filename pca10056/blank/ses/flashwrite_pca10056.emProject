@@ -98,6 +98,9 @@
       <file file_name="../../../../../../modules/nrfx/mdk/ses_startup_nrf_common.s" />
       <file file_name="../../../../../../modules/nrfx/mdk/system_nrf52840.c" />
     </folder>
+    <folder Name="Tools">
+      <file file_name="../../../nrf_calendar.c" />
+    </folder>
   </project>
   <configuration Name="Release"
     c_preprocessor_definitions="NDEBUG"
