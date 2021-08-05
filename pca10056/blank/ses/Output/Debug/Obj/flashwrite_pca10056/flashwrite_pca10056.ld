@@ -92,8 +92,50 @@ SECTIONS
 
   . = ASSERT(__text_start__ == __text_end__ || (__text_end__ - __FLASH_segment_start__) <= __FLASH_segment_size__ , "error: .text is too large to fit in FLASH memory segment");
 
-  __log_const_data_load_start__ = ALIGN(__text_end__ , 4);
-  .log_const_data ALIGN(__text_end__ , 4) : AT(ALIGN(__text_end__ , 4))
+  __cli_command_load_start__ = ALIGN(__text_end__ , 4);
+  .cli_command ALIGN(__text_end__ , 4) : AT(ALIGN(__text_end__ , 4))
+  {
+    __cli_command_start__ = .;
+    __start_cli_command =   __cli_command_start__;
+    KEEP(*(.cli_command*))
+  }
+  __cli_command_end__ = __cli_command_start__ + SIZEOF(.cli_command);
+  __cli_command_size__ = SIZEOF(.cli_command);
+  __stop_cli_command =   __cli_command_end__;
+  __cli_command_load_end__ = __cli_command_end__;
+
+  . = ASSERT(__cli_command_start__ == __cli_command_end__ || (__cli_command_end__ - __FLASH_segment_start__) <= __FLASH_segment_size__ , "error: .cli_command is too large to fit in FLASH memory segment");
+
+  __pwr_mgmt_data_load_start__ = ALIGN(__cli_command_end__ , 4);
+  .pwr_mgmt_data ALIGN(__cli_command_end__ , 4) : AT(ALIGN(__cli_command_end__ , 4))
+  {
+    __pwr_mgmt_data_start__ = .;
+    __start_pwr_mgmt_data =   __pwr_mgmt_data_start__;
+    KEEP(*(SORT(.pwr_mgmt_data*)))
+  }
+  __pwr_mgmt_data_end__ = __pwr_mgmt_data_start__ + SIZEOF(.pwr_mgmt_data);
+  __pwr_mgmt_data_size__ = SIZEOF(.pwr_mgmt_data);
+  __stop_pwr_mgmt_data =   __pwr_mgmt_data_end__;
+  __pwr_mgmt_data_load_end__ = __pwr_mgmt_data_end__;
+
+  . = ASSERT(__pwr_mgmt_data_start__ == __pwr_mgmt_data_end__ || (__pwr_mgmt_data_end__ - __FLASH_segment_start__) <= __FLASH_segment_size__ , "error: .pwr_mgmt_data is too large to fit in FLASH memory segment");
+
+  __nrf_queue_load_start__ = ALIGN(__pwr_mgmt_data_end__ , 4);
+  .nrf_queue ALIGN(__pwr_mgmt_data_end__ , 4) : AT(ALIGN(__pwr_mgmt_data_end__ , 4))
+  {
+    __nrf_queue_start__ = .;
+    __start_nrf_queue =   __nrf_queue_start__;
+    KEEP(*(.nrf_queue*))
+  }
+  __nrf_queue_end__ = __nrf_queue_start__ + SIZEOF(.nrf_queue);
+  __nrf_queue_size__ = SIZEOF(.nrf_queue);
+  __stop_nrf_queue =   __nrf_queue_end__;
+  __nrf_queue_load_end__ = __nrf_queue_end__;
+
+  . = ASSERT(__nrf_queue_start__ == __nrf_queue_end__ || (__nrf_queue_end__ - __FLASH_segment_start__) <= __FLASH_segment_size__ , "error: .nrf_queue is too large to fit in FLASH memory segment");
+
+  __log_const_data_load_start__ = ALIGN(__nrf_queue_end__ , 4);
+  .log_const_data ALIGN(__nrf_queue_end__ , 4) : AT(ALIGN(__nrf_queue_end__ , 4))
   {
     __log_const_data_start__ = .;
     __start_log_const_data =   __log_const_data_start__;
@@ -147,8 +189,32 @@ SECTIONS
 
   . = ASSERT(__nrf_sections_start__ == __nrf_sections_end__ || (__nrf_sections_end__ - __FLASH_segment_start__) <= __FLASH_segment_size__ , "error: .nrf_sections is too large to fit in FLASH memory segment");
 
-  __log_dynamic_data_load_start__ = ALIGN(__nrf_sections_end__ , 4);
-  .log_dynamic_data ALIGN(__nrf_sections_run_end__ , 4) : AT(ALIGN(__nrf_sections_end__ , 4))
+  __cli_sorted_cmd_ptrs_load_start__ = ALIGN(__nrf_sections_end__ , 4);
+  .cli_sorted_cmd_ptrs ALIGN(__nrf_sections_run_end__ , 4) : AT(ALIGN(__nrf_sections_end__ , 4))
+  {
+    __cli_sorted_cmd_ptrs_start__ = .;
+    KEEP(*(.cli_sorted_cmd_ptrs*))
+  }
+  __cli_sorted_cmd_ptrs_end__ = __cli_sorted_cmd_ptrs_start__ + SIZEOF(.cli_sorted_cmd_ptrs);
+  __cli_sorted_cmd_ptrs_size__ = SIZEOF(.cli_sorted_cmd_ptrs);
+  __cli_sorted_cmd_ptrs_load_end__ = __cli_sorted_cmd_ptrs_load_start__ + SIZEOF(.cli_sorted_cmd_ptrs);
+
+  . = ASSERT(__cli_sorted_cmd_ptrs_load_start__ == __cli_sorted_cmd_ptrs_load_end__ || (__cli_sorted_cmd_ptrs_load_end__ - __FLASH_segment_start__) <=  __FLASH_segment_size__ , "error: .cli_sorted_cmd_ptrs is too large to fit in FLASH memory segment");
+
+  .cli_sorted_cmd_ptrs_run ALIGN(__nrf_sections_run_end__ , 4) (NOLOAD) :
+  {
+    __cli_sorted_cmd_ptrs_run_start__ = .;
+    __start_cli_sorted_cmd_ptrs =   __cli_sorted_cmd_ptrs_run_start__;
+  }
+  __cli_sorted_cmd_ptrs_run_end__ = __cli_sorted_cmd_ptrs_run_start__ + SIZEOF(.cli_sorted_cmd_ptrs);
+  __cli_sorted_cmd_ptrs_run_size__ = __cli_sorted_cmd_ptrs_run_end__ - __cli_sorted_cmd_ptrs_run_start__;
+  __stop_cli_sorted_cmd_ptrs =   __cli_sorted_cmd_ptrs_run_end__;
+  __cli_sorted_cmd_ptrs_run_load_end__ = __cli_sorted_cmd_ptrs_run_end__;
+
+  . = ASSERT(__cli_sorted_cmd_ptrs_run_start__ == __cli_sorted_cmd_ptrs_run_end__ || (__cli_sorted_cmd_ptrs_run_end__ - __RAM1_segment_start__) <= __RAM1_segment_size__ , "error: .cli_sorted_cmd_ptrs_run is too large to fit in RAM1 memory segment");
+
+  __log_dynamic_data_load_start__ = ALIGN(__cli_sorted_cmd_ptrs_load_start__ + SIZEOF(.cli_sorted_cmd_ptrs) , 4);
+  .log_dynamic_data ALIGN(__cli_sorted_cmd_ptrs_run_end__ , 4) : AT(ALIGN(__cli_sorted_cmd_ptrs_load_start__ + SIZEOF(.cli_sorted_cmd_ptrs) , 4))
   {
     __log_dynamic_data_start__ = .;
     KEEP(*(SORT(.log_dynamic_data*)))
@@ -159,7 +225,7 @@ SECTIONS
 
   . = ASSERT(__log_dynamic_data_load_start__ == __log_dynamic_data_load_end__ || (__log_dynamic_data_load_end__ - __FLASH_segment_start__) <=  __FLASH_segment_size__ , "error: .log_dynamic_data is too large to fit in FLASH memory segment");
 
-  .log_dynamic_data_run ALIGN(__nrf_sections_run_end__ , 4) (NOLOAD) :
+  .log_dynamic_data_run ALIGN(__cli_sorted_cmd_ptrs_run_end__ , 4) (NOLOAD) :
   {
     __log_dynamic_data_run_start__ = .;
     __start_log_dynamic_data =   __log_dynamic_data_run_start__;
