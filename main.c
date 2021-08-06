@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <time.h>
+#include <stdlib.h>
 #include "nrf.h"
 #include "bsp.h"
 #include "app_error.h"
@@ -300,18 +301,18 @@ static void datetime_set_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
                         " bad parameter count - please use quotes\r\n");
         return;
     }
-    nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "%s", argv[1], " input\r\n");
+    nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "%s\n", argv[1], " input\r\n");
     char *dateString = argv[1];
-    struct tm tm;
-    time_t t;
-    if (strptime(dateString, "%d/%b/%Y %H:%M:%S", &tm) == NULL) {
-        /* Handle error */;
+    if (sscanf(dateString, "%2d/%2d/%4d %2d:%2d:%2d", &day, &month, &year,  &hour, &minute, &second) == 6) {
+    //TODO Validate datetime
+    //TODO Bug with month, because range  (0, 11)
     }
-    printf("year: %d; month: %d; day: %d;\n",
-            tm.tm_year, tm.tm_mon, tm.tm_mday);
-    printf("hour: %d; minute: %d; second: %d\n",
-            tm.tm_hour, tm.tm_min, tm.tm_sec);
-    printf("week day: %d; year day: %d\n", tm.tm_wday, tm.tm_yday);
+
+   nrf_cli_fprintf(p_cli, NRF_CLI_INFO,"year: %d; month: %d; day: %d;\n",
+            year, month, day);
+    nrf_cli_fprintf(p_cli, NRF_CLI_INFO,"hour: %d; minute: %d; second: %d\n",
+            hour, minute, second);
+    nrf_cal_set_time(year, month, day, hour, minute, second);
 }
 
  NRF_CLI_CREATE_STATIC_SUBCMD_SET(m_sub_flash)
