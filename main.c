@@ -3,10 +3,10 @@
 #include <time.h>
 #include <stdlib.h>
 #include "nrf.h"
-#include "bsp.h"
 #include "app_error.h"
 #include "nrf_nvmc.h"
 #include "nordic_common.h"
+#include "bsp.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -25,6 +25,8 @@
 #define FLASHWRITE_EXAMPLE_BLOCK_VALID          (0xA55A5AA5)
 #define FLASHWRITE_EXAMPLE_BLOCK_INVALID        (0xA55A0000)
 #define FLASHWRITE_EXAMPLE_BLOCK_NOT_INIT       (0xFFFFFFFF)
+
+static uint32_t                   packet;                    /**< Packet to transmit. */
 
 static bool run_time_updates = false;
 
@@ -88,6 +90,35 @@ static void flash_page_init(void)
     }
 }
 
+void send_packet()
+{
+	// send the packet:
+	NRF_RADIO->EVENTS_READY = 0U;
+	NRF_RADIO->TASKS_TXEN   = 1;
+
+	while (NRF_RADIO->EVENTS_READY == 0U)
+	{
+		// wait
+	}
+	NRF_RADIO->EVENTS_END  = 0U;
+	NRF_RADIO->TASKS_START = 1U;
+
+	while (NRF_RADIO->EVENTS_END == 0U)
+	{
+		// wait
+	}
+
+	NRF_RADIO->EVENTS_DISABLED = 0U;
+	// Disable radio
+	NRF_RADIO->TASKS_DISABLE = 1U;
+
+	while (NRF_RADIO->EVENTS_DISABLED == 0U)
+	{
+		// wait
+	}
+}
+
+
 /**
  * @brief Function for application main entry.
  */
@@ -103,6 +134,11 @@ int main(void)
     err_code = clock_config();
     APP_ERROR_CHECK(err_code);
     nrf_cal_init();
+    // Set radio configuration parameters
+    radio_configure();
+
+    // Set payload pointer
+    NRF_RADIO->PACKETPTR = (uint32_t)&packet;
 
     flash_page_init();
 
@@ -315,6 +351,29 @@ static void datetime_set_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
     nrf_cal_set_time(year, month, day, hour, minute, second);
 }
 
+static void send_packet_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
+{
+    //if (argc < 2)
+    //{
+    //    nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "%s:%s", argv[0], " bad parameter count\r\n");
+    //    return;
+    //}
+    //if (argc > 2)
+    //{
+    //    nrf_cli_fprintf(p_cli,
+    //                    NRF_CLI_WARNING,
+    //                    "%s:%s",
+    //                    argv[0],
+    //                    " bad parameter count - please use quotes\r\n");
+    //    return;
+    //}
+    packet = 123;
+    send_packet();
+    nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "The contents of the package was %u\n", (unsigned int)packet);
+    packet = 0;
+
+}
+
  NRF_CLI_CREATE_STATIC_SUBCMD_SET(m_sub_flash)
 {
     NRF_CLI_CMD(erase, NULL, "Erase flash.",          flashwrite_erase_cmd),
@@ -328,8 +387,10 @@ static void datetime_set_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
     NRF_CLI_CMD(datetime, NULL, "Print current datetime", datetime_print_cmd),
     NRF_CLI_CMD(setdatetime, NULL, "Set current datetime.\n"
                                     "Example 21/12/2021 12:12:00", datetime_set_cmd),
+    NRF_CLI_CMD(send-packet, NULL, "Print current temperatute.", send_packet_cmd),
     NRF_CLI_SUBCMD_SET_END
 };
 NRF_CLI_CMD_REGISTER(flash, &m_sub_flash, "Flash access command.", flashwrite_cmd);
+
 
 /** @} */

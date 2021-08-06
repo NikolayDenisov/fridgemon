@@ -39,6 +39,7 @@
 "Output/Debug/Obj/flashwrite_pca10056/nrfx_prs.o"
 "Output/Debug/Obj/flashwrite_pca10056/nrfx_uart.o"
 "Output/Debug/Obj/flashwrite_pca10056/nrfx_uarte.o"
+"Output/Debug/Obj/flashwrite_pca10056/radio_config.o"
 "Output/Debug/Obj/flashwrite_pca10056/main.o"
 "Output/Debug/Obj/flashwrite_pca10056/SEGGER_RTT.o"
 "Output/Debug/Obj/flashwrite_pca10056/SEGGER_RTT_Syscalls_SES.o"
