@@ -26,7 +26,7 @@
 #define FLASHWRITE_EXAMPLE_BLOCK_INVALID        (0xA55A0000)
 #define FLASHWRITE_EXAMPLE_BLOCK_NOT_INIT       (0xFFFFFFFF)
 
-static uint32_t                   packet;                    /**< Packet to transmit. */
+static uint32_t packet;                    /**< Packet to transmit. */
 
 static bool run_time_updates = false;
 
@@ -48,21 +48,6 @@ typedef struct
 } flashwrite_example_data_t;
 
 static flashwrite_example_data_t m_data;
-
-static ret_code_t clock_config(void)
-{
-    ret_code_t err_code;
-
-    err_code = nrf_drv_clock_init();
-    if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_MODULE_ALREADY_INITIALIZED)
-    {
-        return err_code;
-    }
-
-    nrf_drv_clock_lfclk_request(NULL);
-
-    return NRF_SUCCESS;
-}
 
 static void flash_page_init(void)
 {
@@ -118,6 +103,28 @@ void send_packet()
 	}
 }
 
+void clock_initialization()
+{
+    /* Start 16 MHz crystal oscillator */
+    NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
+    NRF_CLOCK->TASKS_HFCLKSTART    = 1;
+
+    /* Wait for the external oscillator to start up */
+    while (NRF_CLOCK->EVENTS_HFCLKSTARTED == 0)
+    {
+        // Do nothing.
+    }
+
+    /* Start low frequency crystal oscillator for app_timer(used by bsp)*/
+    NRF_CLOCK->LFCLKSRC            = (CLOCK_LFCLKSRC_SRC_Xtal << CLOCK_LFCLKSRC_SRC_Pos);
+    NRF_CLOCK->EVENTS_LFCLKSTARTED = 0;
+    NRF_CLOCK->TASKS_LFCLKSTART    = 1;
+
+    while (NRF_CLOCK->EVENTS_LFCLKSTARTED == 0)
+    {
+        // Do nothing.
+    }
+}
 
 /**
  * @brief Function for application main entry.
@@ -131,11 +138,14 @@ int main(void)
     err_code = app_timer_init();
     APP_ERROR_CHECK(err_code);
 
-    err_code = clock_config();
+    clock_initialization();
     APP_ERROR_CHECK(err_code);
     nrf_cal_init();
     // Set radio configuration parameters
     radio_configure();
+
+    NVIC_ClearPendingIRQ(RADIO_IRQn);
+    NVIC_SetPriority(RADIO_IRQn, 6);
 
     // Set payload pointer
     NRF_RADIO->PACKETPTR = (uint32_t)&packet;
@@ -301,6 +311,7 @@ static void flashwrite_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
 static void temp_print_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
 {
     uint32_t temp;
+
     nrf_temp_init();
     //Start temperature measurement
     NRF_TEMP->TASKS_START = 1;
@@ -311,7 +322,7 @@ static void temp_print_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
     temp = nrf_temp_read()/4;
     //Stop temperature measurement
     NRF_TEMP->TASKS_STOP = 1;
-    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "%d\r\n", temp);
+    nrf_cli_fprintf(p_cli, NRF_CLI_NORMAL, "%s %d °C\r\n", nrf_cal_get_time_string(true), temp);
 
 }
 
@@ -353,25 +364,28 @@ static void datetime_set_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
 
 static void send_packet_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
 {
-    //if (argc < 2)
-    //{
-    //    nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "%s:%s", argv[0], " bad parameter count\r\n");
-    //    return;
-    //}
-    //if (argc > 2)
-    //{
-    //    nrf_cli_fprintf(p_cli,
-    //                    NRF_CLI_WARNING,
-    //                    "%s:%s",
-    //                    argv[0],
-    //                    " bad parameter count - please use quotes\r\n");
-    //    return;
-    //}
-    packet = 123;
-    send_packet();
-    nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "The contents of the package was %u\n", (unsigned int)packet);
-    packet = 0;
-
+    if (argc < 2)
+    {
+        nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "%s:%s", argv[0], " bad parameter count\r\n");
+        return;
+    }
+    if (argc > 2)
+    {
+        nrf_cli_fprintf(p_cli,
+                        NRF_CLI_WARNING,
+                        "%s:%s",
+                        argv[0],
+                        " bad parameter count - please use quotes\r\n");
+        return;
+    }
+    packet = atoi(argv[1]);
+    if (packet != 0)
+    {
+      
+      send_packet();
+      nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "The contents of the package was %u\n", (unsigned int)packet);
+      packet = 0;
+    }
 }
 
  NRF_CLI_CREATE_STATIC_SUBCMD_SET(m_sub_flash)
